@@ -1,32 +1,27 @@
-const express = require('express');
+const path = require('path');
 const fs = require('fs');
+const express = require('express');
 const app = express();
 const port = 3000;
-const path = require('path');
-const productosPath = path.join(__dirname, 'productos.json');
 
 app.use(express.json());
 
+const productosPath = path.join(__dirname, 'public', 'productos.json');
 let productos;
 
 try {
     productos = JSON.parse(fs.readFileSync(productosPath));
 } catch (error) {
     console.error('Error al leer productos.json:', error);
-    productos = [];
+    productos = [];  // Evita que la app se detenga si no encuentra el archivo
 }
-
 
 app.get('/', (req, res) => {
     res.redirect('/api/productos');
 });
 
 app.get('/api/productos', (req, res) => {
-    try {
-        res.json(productos);
-    } catch (error) {
-        res.status(500).send('Error al obtener los productos');
-    }
+    res.json(productos);
 });
 
 app.listen(port, () => {
