@@ -2,10 +2,20 @@ const express = require('express');
 const fs = require('fs');
 const app = express();
 const port = 3000;
+const path = require('path');
+const productosPath = path.join(__dirname, 'productos.json');
 
 app.use(express.json());
 
-let productos = JSON.parse(fs.readFileSync('productos.json'));
+let productos;
+
+try {
+    productos = JSON.parse(fs.readFileSync(productosPath));
+} catch (error) {
+    console.error('Error al leer productos.json:', error);
+    productos = [];
+}
+
 
 app.get('/', (req, res) => {
     res.redirect('/api/productos');
