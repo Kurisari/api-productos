@@ -28,22 +28,24 @@ app.get('/api/productos', (req, res) => {
     res.json(productos);
 });
 
-// Agregar un nuevo producto (Método POST)
 app.post('/api/productos', (req, res) => {
     const nuevoProducto = req.body;
-    
-    // Asignar un nuevo ID (puedes mejorarlo para que sea más dinámico)
-    nuevoProducto.id = productos.length + 1;
 
-    // Agregar el nuevo producto al array
+    // Asegúrate de que la estructura es correcta (ID, nombre, descripción, etc.)
+    nuevoProducto.id = productos.length + 1;  // O usar un método adecuado para asignar el ID
+
+    // Agrega el nuevo producto al array
     productos.push(nuevoProducto);
 
-    // Guardar el archivo actualizado
-    fs.writeFileSync(productosPath, JSON.stringify(productos, null, 2));
-
-    // Responder con el producto agregado
-    res.status(201).json(nuevoProducto);
+    // Actualiza el archivo JSON
+    try {
+        fs.writeFileSync(productosPath, JSON.stringify(productos, null, 2));
+        res.status(201).json(nuevoProducto);  // Responde con el producto agregado
+    } catch (error) {
+        res.status(500).send("Error al guardar el producto");
+    }
 });
+
 
 // Iniciar el servidor
 app.listen(port, () => {
