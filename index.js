@@ -11,9 +11,12 @@ app.get('/', (req, res) => {
     res.redirect('/api/productos');
 });
 
-// Endpoint para obtener todos los productos
 app.get('/api/productos', (req, res) => {
-    res.json(productos);
+    try {
+        res.json(productos);
+    } catch (error) {
+        res.status(500).send('Error al obtener los productos');
+    }
 });
 
 app.listen(port, () => {
