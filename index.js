@@ -1,51 +1,66 @@
-const path = require('path');
-const fs = require('fs');
 const express = require('express');
+const fs = require('fs');
+const admin = require('firebase-admin');
+const path = require('path');
+
+// Inicializar Firebase
+const serviceAccount = require('./config/firebase-credentials.json');  // Ruta al archivo de credenciales
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    databaseURL: "https://api-dweb-default-rtdb.firebaseio.com/"  // URL de tu Realtime Database
+});
+
+// Crear una instancia de Express
 const app = express();
-const port = 3000;
+const port = 3000;  // Puerto en el que se ejecutará el servidor
 
-app.use(express.json());
+// Obtener la referencia a la base de datos
+const db = admin.database();
+const ref = db.ref("productos");  // La referencia a la colección de productos
 
-// Ruta donde está el archivo JSON
-const productosPath = path.join(__dirname, 'public', 'productos.json');
-let productos;
-
-// Intentamos leer el archivo JSON, si no existe, inicializamos como un array vacío
-try {
-    productos = JSON.parse(fs.readFileSync(productosPath));
-} catch (error) {
-    console.error('Error al leer productos.json:', error);
-    productos = [];  // Evita que la app se detenga si no encuentra el archivo
-}
-
-// Redirección al endpoint de productos
+// Redirección desde la ruta raíz ("/") a "/api/productos"
 app.get('/', (req, res) => {
     res.redirect('/api/productos');
 });
 
-// Obtener todos los productos
+// Servir los productos desde Firebase a través de un endpoint
 app.get('/api/productos', (req, res) => {
-    res.json(productos);
+    ref.once("value", (snapshot) => {
+        const productos = snapshot.val();  // Obtiene los datos de la base de datos
+        if (productos) {
+            res.json(productos);  // Responde con los productos en formato JSON
+        } else {
+            res.status(404).send("No se encontraron productos.");
+        }
+    });
 });
 
-app.post('/api/productos', (req, res) => {
-    const nuevoProducto = req.body;
+// Leer el archivo productos.json y cargar los datos en Firebase
+app.get('/cargar-productos', (req, res) => {
+    fs.readFile(path.join(__dirname, 'public', 'productos.json'), 'utf8', (err, data) => {
+        if (err) {
+            console.error("Error al leer el archivo:", err);
+            return res.status(500).send("Error al leer el archivo productos.json");
+        }
 
-    // Asegúrate de que la estructura es correcta (ID, nombre, descripción, etc.)
-    nuevoProducto.id = productos.length + 1;  // O usar un método adecuado para asignar el ID
+        // Parsear los datos JSON del archivo
+        const productos = JSON.parse(data);
 
-    // Agrega el nuevo producto al array
-    productos.push(nuevoProducto);
+        // Subir los productos a Firebase
+        productos.forEach(producto => {
+            const newProductRef = ref.push();  // Crea un nuevo nodo con ID único
+            newProductRef.set(producto, (error) => {
+                if (error) {
+                    console.error("Error al guardar el producto:", error);
+                } else {
+                    console.log(`Producto ${producto.name} agregado exitosamente.`);
+                }
+            });
+        });
 
-    // Actualiza el archivo JSON
-    try {
-        fs.writeFileSync(productosPath, JSON.stringify(productos, null, 2));
-        res.status(201).json(nuevoProducto);  // Responde con el producto agregado
-    } catch (error) {
-        res.status(500).send("Error al guardar el producto");
-    }
+        res.send("Productos cargados a Firebase exitosamente.");
+    });
 });
-
 
 // Iniciar el servidor
 app.listen(port, () => {
