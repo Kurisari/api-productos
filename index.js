@@ -1,37 +1,64 @@
-const admin = require('firebase-admin');
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
 
-// Leer las credenciales desde las variables de entorno
-const serviceAccount = {
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Reemplazar \n por saltos de línea
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+// Ruta al archivo JSON
+const productosPath = path.join(__dirname, 'productos.json');
+
+// Middleware para manejar JSON en las solicitudes
+app.use(express.json());
+
+// Leer datos del archivo JSON
+const leerProductos = () => {
+    const datos = fs.readFileSync(productosPath, 'utf-8');
+    return JSON.parse(datos);
 };
 
-// Inicializar Firebase
-admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    databaseURL: "https://api-dweb-default-rtdb.firebaseio.com/"  // URL de tu Realtime Database
+// Escribir datos al archivo JSON
+const escribirProductos = (productos) => {
+    fs.writeFileSync(productosPath, JSON.stringify(productos, null, 2), 'utf-8');
+};
+
+// Rutas de la API
+// Obtener todos los productos
+app.get('/productos', (req, res) => {
+    const productos = leerProductos();
+    res.json(productos);
 });
 
-// Obtener la referencia a la base de datos
-const db = admin.database();
-const ref = db.ref("productos");
+// Crear un nuevo producto
+app.post('/productos', (req, res) => {
+    const nuevoProducto = req.body;
+    const productos = leerProductos();
 
-// Redirección desde la ruta raíz ("/") a "/api/productos"
-module.exports = (req, res) => {
-    if (req.url === '/') {
-        res.writeHead(302, { 'Location': '/api/productos' });
-        res.end();
-    } else if (req.url === '/api/productos' && req.method === 'GET') {
-        ref.once("value", (snapshot) => {
-            const productos = snapshot.val();  // Obtiene los datos de la base de datos
-            if (productos) {
-                res.status(200).json(productos);  // Responde con los productos en formato JSON
-            } else {
-                res.status(404).send("No se encontraron productos.");
-            }
-        });
-    } else {
-        res.status(404).send("Ruta no encontrada.");
+    // Asignar un ID único al nuevo producto
+    nuevoProducto.id = productos.length ? productos[productos.length - 1].id + 1 : 1;
+
+    productos.push(nuevoProducto);
+    escribirProductos(productos);
+
+    res.status(201).json({ message: 'Producto añadido', producto: nuevoProducto });
+});
+
+// Eliminar un producto por ID
+app.delete('/productos/:id', (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    let productos = leerProductos();
+
+    const productosFiltrados = productos.filter((producto) => producto.id !== id);
+
+    if (productos.length === productosFiltrados.length) {
+        return res.status(404).json({ message: 'Producto no encontrado' });
     }
-};
+
+    escribirProductos(productosFiltrados);
+    res.json({ message: 'Producto eliminado' });
+});
+
+// Iniciar el servidor
+app.listen(PORT, () => {
+    console.log(`API corriendo en http://localhost:${PORT}`);
+});
