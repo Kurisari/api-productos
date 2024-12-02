@@ -22,14 +22,13 @@ const escribirProductos = (productos) => {
     fs.writeFileSync(productosPath, JSON.stringify(productos, null, 2), 'utf-8');
 };
 
-// Rutas de la API
-// Obtener todos los productos
+// Ruta para obtener todos los productos
 app.get('/productos', (req, res) => {
     const productos = leerProductos();
     res.json(productos);
 });
 
-// Crear un nuevo producto
+// Ruta para crear un nuevo producto (POST)
 app.post('/productos', (req, res) => {
     const nuevoProducto = req.body;
     const productos = leerProductos();
@@ -43,7 +42,7 @@ app.post('/productos', (req, res) => {
     res.status(201).json({ message: 'Producto añadido', producto: nuevoProducto });
 });
 
-// Eliminar un producto por ID
+// Ruta para eliminar un producto (DELETE)
 app.delete('/productos/:id', (req, res) => {
     const id = parseInt(req.params.id, 10);
     let productos = leerProductos();
@@ -56,6 +55,23 @@ app.delete('/productos/:id', (req, res) => {
 
     escribirProductos(productosFiltrados);
     res.json({ message: 'Producto eliminado' });
+});
+
+// Ruta para actualizar un producto (PUT)
+app.put('/productos/:id', (req, res) => {
+    const id = parseInt(req.params.id, 10);
+    const productos = leerProductos();
+
+    const index = productos.findIndex((producto) => producto.id === id);
+    if (index === -1) {
+        return res.status(404).json({ message: 'Producto no encontrado' });
+    }
+
+    // Actualizar producto con nuevos datos
+    productos[index] = { ...productos[index], ...req.body };
+    escribirProductos(productos);
+
+    res.json({ message: 'Producto actualizado', producto: productos[index] });
 });
 
 // Iniciar el servidor
